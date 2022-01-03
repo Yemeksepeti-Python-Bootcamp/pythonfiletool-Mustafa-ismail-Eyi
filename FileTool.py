@@ -1,31 +1,33 @@
 #%%
 
-#TODO need a csv test data
 
 from pathlib import Path
 import os
 from posixpath import split
 import pandas as pd
+from tabulate import tabulate 
 import sys
 
 class FileTool:
     
 
-    def __init__(self, path = None, *args) -> None:
+    def __init__(self, path = "",*args):
         self.path = path
         self.fields = list(args)
-        self.userChoice()
-        if self.isFileExists:
-            if self.isFeaturesMatches(args):
-                self.data = pd.read_csv(self.path, usecols=[str(col).lower() for col in self.fields])
+
+        if self.isFileExists():
+            if self.isFeaturesMatches:
+                self.data = pd.read_csv(self.path, usecols=[col for col in self.fields])
+                self.userChoice()
             else:
                 print("Features do not match")
+        else:
+            raise Exception("CSV file does not exist")
         
 
 
 
     # the main idea of being property that method is can be used like a variable
-    @property
     def isFileExists(self):
         #TODO this method will be refactored with os.path.abspath() 
         """ This checks the entered file exists or not"""
@@ -47,39 +49,52 @@ class FileTool:
     def userChoice(self):
         """ Requires the choice of user """
         flag = True
-        #TODO below the user choices will be in english
-        print("Aramak için 1 e basın")
-        print("silme için 2 ye basın")
-        print("eklemek için 3 e basın")
-        print("güncelleme için 4 basın")
-        print("çıkmak için 0 a basın")
+        print("Press 1 to search the data")
+        print("Press 2 to delete a record")
+        print("Press 3 to append a data")
+        print("Press 4 to update")
+        print('Press 5 to print the data')
+        print("Press 6 to export one line of data to json")
+        print("Press 0 to exit")
         
         while flag:
-            user_input = input("Lütfen Seçim Yapınız")
+            user_input = input("Please enter a number")
             if user_input == '1':
-                print("Press \"1\" to search data")
-                
+                self.searchData()
             elif user_input == '2':
-                pass
+                self.deleteData()
             elif user_input == '3':
-                print("Press \"3\" to add data")
                 self.addData()
-
             elif user_input == '4':
                 pass
+            elif user_input == '5': 
+                try:
+                    row_n = int(input("To see all data enter \'-1\' else to see a row enter index of it"))
+                    self.printData(row_n)
+                except:
+                    print("Please enter a number")
+            elif user_input == '6':
+                self.exportToJsonOne()
+
             elif user_input == '0':
                 print("Bye bye")
                 sys.exit(0)
             else:
                 try:
-                    if int(user_input) not in range(0,5):
-                        print("Please enter a number range in between 0 and 5")
+                    if int(user_input) not in range(0,7):
+                        print("Please enter a number range in between 0 and 6")
                 except:
-                    print("Wrong character please a number range in between 0 and 5")
+                    print("Wrong character please enter a number range in between 0 and 6")
     
     def searchData(self):
         #TODO This method will search the data point
-        datas = [i for i in input("Please enter the data as comma seperated format respect to fields of the data").split(',')]
+        col = input("Please enter the column name")
+        value = input("Please enter the value")
+        # example data[data["Style"]=="Cup"]
+        try:
+            print(tabulate(self.data[self.data[col]==value], headers='keys', tablefmt='psql'))
+        except:
+            print("Column name is not valid or value type incosistent")
 
     def addData(self):
         """ This method will add the data at the end
@@ -96,18 +111,32 @@ class FileTool:
         except:
             print("datas do not match with features")
 
+    def deleteData(self):
+        ind = int(input("Enter the index of record which will be deleted"))
+        try:
+            self.data.drop([self.data.index[ind]]).reset_index(drop=True)
+        except:
+            print(f"Index is out of range. Enter the number between 0 - {len(self.data)}")
+        finally:
+            del ind
 
     @property
-    def isFeaturesMatches(self,args):
+    def isFeaturesMatches(self):
         """ Checks the featrues matches or not"""
-        for cols in args:
-            if cols not in pd.read_csv(self.path).columns:
+        features = [str(x).lower() for x in pd.read_csv(self.path).columns]
+        for cols in self.fields:
+            if str(cols).lower() not in features:
                 return False
         return True
 
-    def exportToJson(self):
+    def exportToJsonOne(self):
         """ export the one line of data to JSON file"""
-        pass
+        data_index = int(input("Enter the index of the data that you want the print as JSON"))
+        while not(0 < data_index < len(self.data)):
+            data_index = int(input(f"Enter the index between 0 and {len(self.data)}"))
+        temporary_df = self.data.loc[[data_index]]
+        temporary_df.to_json('./asdasdas.json')
+        
 
     def exportToCSV(self,):
         """ export the whole data to csv file """
@@ -115,12 +144,52 @@ class FileTool:
         to_csv_path = "".join(self.path.split('/')[:-1]) if len(self.path.split('/')) != 1 else f'./{self.data}' 
         self.data.to_csv(to_csv_path.replace('.csv','.csv'))
 
-
+    def printData(self,start):
+        """
+        Print the data as in tabulate format
+        """
+        if start == -1:
+            print(tabulate(self.data[:start], headers='keys', tablefmt='psql'))
+        else:
+            print(tabulate(self.data.loc[[start]],headers="keys",tablefmt="psql"))
+    
     def __repr__(self) -> str:
         return f"folder path:{self.path.split('/')[:-1]} file:{self.path.split('/')[-1]} fields: {''.join(*self.fields)}" 
 
 
+
+
 #%%
+# test = FileTool("")
+
+test = FileTool('./ramen-ratings.csv','Variety','Style','Country','Stars','Top Ten')
+test.exportToJsonOne()
+# %%
+import pandas as pd
+from tabulate import tabulate 
+data = pd.read_csv('./ramen-ratings.csv')
+# %%
+print(tabulate(data[:-1], headers='keys', tablefmt='psql'))# %%
+print(data.iloc[0,:])
+# # %%
+# import pandas as pd
+
+# [x for x in pd.read_csv('ramen-ratings.csv').columns]
+# # %%
+
+# %%
+print(data.loc[[0]])
+# %%
+a="Style"
+b="Cup"
+data['Style'].drop_duplicates()
+data[data["Style"]=="Cup"]
+print(data.Stars.dtype)
+# %%
+data.info()
+# %%
 
 
+# %%
+data
 # %%
