@@ -4,9 +4,12 @@
 from pathlib import Path
 import os
 from posixpath import split
+
 import pandas as pd
+
 from tabulate import tabulate 
 import sys
+import csv
 
 class FileTool:
     
@@ -16,11 +19,15 @@ class FileTool:
         self.fields = list(args)
 
         if self.isFileExists():
-            if self.isFeaturesMatches:
-                self.data = pd.read_csv(self.path, usecols=[col for col in self.fields])
-                self.userChoice()
+            if self.hasFileHeaders():
+                if self.isFeaturesMatches:
+                    self.data = pd.read_csv(self.path, usecols=[col for col in self.fields])
+                    self.userChoice()
+                else:
+                    print("Features do not match")
             else:
-                print("Features do not match")
+                self.data = pd.read_csv(self.path, header=0, names=[str(i) for i in range(pd.read_csv(self.path).shape[1])])
+                self.userChoice()
         else:
             raise Exception("CSV file does not exist")
         
@@ -48,16 +55,18 @@ class FileTool:
 
     def userChoice(self):
         """ Requires the choice of user """
-        flag = True
+        __flag = True
         print("Press 1 to search the data")
         print("Press 2 to delete a record")
         print("Press 3 to append a data")
         print("Press 4 to update")
         print('Press 5 to print the data')
         print("Press 6 to export one line of data to json")
+        print("Press 7 to append the data to another data")
+    
         print("Press 0 to exit")
         
-        while flag:
+        while __flag:
             user_input = input("Please enter a number")
             if user_input == '1':
                 self.searchData()
@@ -76,15 +85,20 @@ class FileTool:
             elif user_input == '6':
                 self.exportToJsonOne()
 
+            elif user_input == '7':
+                self.exportBulkData()
+
             elif user_input == '0':
+                __flag = False
                 print("Bye bye")
                 sys.exit(0)
+            
             else:
                 try:
-                    if int(user_input) not in range(0,7):
-                        print("Please enter a number range in between 0 and 6")
+                    if int(user_input) not in range(0,8):
+                        print("Please enter a number range in between 0 and 7")
                 except:
-                    print("Wrong character please enter a number range in between 0 and 6")
+                    print("Wrong character please enter a number range in between 0 and 7")
     
     def searchData(self):
         #TODO This method will search the data point
@@ -152,6 +166,33 @@ class FileTool:
             print(tabulate(self.data[:start], headers='keys', tablefmt='psql'))
         else:
             print(tabulate(self.data.loc[[start]],headers="keys",tablefmt="psql"))
+
+    def hasFileHeaders(self, path = None):
+        """
+        This method checks the csv file has columns or not
+        """
+        if path is None:
+            with open(self.path, 'r') as csvfile:
+                sniffer = csv.Sniffer() # sniffer handles the header problem are there exist or not
+                has_header = sniffer.has_header(csvfile.read(2048)) # 2048 is arbitrary number which is need to read 2-3 rows as bytes
+                csvfile.seek(0) # set the cursor at the beginning
+        else:
+            with open(self.path, 'r') as csvfile:
+                sniffer = csv.Sniffer() # sniffer handles the header problem are there exist or not
+                has_header = sniffer.has_header(csvfile.read(2048)) # 2048 is arbitrary number which is need to read 2-3 rows as bytes
+                csvfile.seek(0) # set the cursor at the beginning
+
+        # returns boolean
+        return has_header 
+
+    def exportBulkData(self):
+        dest_path = input("enter the path where you want to append the your data")
+        if self.hasFileHeaders(path=dest_path):
+            self.data.to_csv(dest_path, mode='a', header=False)
+        else:
+            self.data.to_csv(dest_path, mode='a', header=True)
+    
+
     
     def __repr__(self) -> str:
         return f"folder path:{self.path.split('/')[:-1]} file:{self.path.split('/')[-1]} fields: {''.join(*self.fields)}" 
@@ -163,14 +204,16 @@ class FileTool:
 # test = FileTool("")
 
 test = FileTool('./ramen-ratings.csv','Variety','Style','Country','Stars','Top Ten')
-test.exportToJsonOne()
+
+#%%
+test = FileTool('./headless.csv')
 # %%
 import pandas as pd
 from tabulate import tabulate 
 data = pd.read_csv('./ramen-ratings.csv')
 # %%
-print(tabulate(data[:-1], headers='keys', tablefmt='psql'))# %%
-print(data.iloc[0,:])
+#print(tabulate(data[:-1], headers='keys', tablefmt='psql'))# %%
+print(data.shape)
 # # %%
 # import pandas as pd
 
